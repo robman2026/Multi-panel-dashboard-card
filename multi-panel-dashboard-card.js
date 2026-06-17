@@ -21,7 +21,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-const CARD_VERSION = "3.2.0";
+const CARD_VERSION = "3.3.0";
 
 const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
 const html = LitElement.prototype.html;
@@ -575,6 +575,11 @@ const STYLES = [
   ".mower-btn:hover{background:rgba(79,163,224,.1);border-color:rgba(79,163,224,.3);color:#6dbfff;}",
   ".mower-btn.primary{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.25);color:#6ddb99;}",
   ".mower-btn.primary:hover{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.4);color:#4ade80;}",
+
+  // ── Just HA Dashboard design adoption — gated on --user-* tokens (defined
+  //    only by the Just HA theme, e.g. Heimdall). Falls back to the card's own
+  //    --mpd-* knobs / original look everywhere else. ──
+  ".mpd-card{background:var(--user-glow-amber,transparent),var(--user-ink-750,var(--mpd-card-bg,linear-gradient(145deg,#1a1f35,#0f1628,#141929)))!important;border:1px solid var(--user-line,var(--mpd-border,rgba(99,179,237,0.15)))!important;border-radius:var(--user-radius-lg,var(--mpd-radius,16px))!important;}",
 ].join('');
 
 // ════════════════════════════════════════════════════════════════════════════
