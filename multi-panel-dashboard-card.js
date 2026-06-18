@@ -579,7 +579,7 @@ const STYLES = [
   // ── Just HA Dashboard design adoption — gated on --user-* tokens (defined
   //    only by the Just HA theme, e.g. Heimdall). Falls back to the card's own
   //    --mpd-* knobs / original look everywhere else. ──
-  ".mpd-card{background:var(--user-glow-amber,transparent),var(--user-ink-750,var(--mpd-card-bg,linear-gradient(145deg,#1a1f35,#0f1628,#141929)))!important;border:1px solid var(--user-line,var(--mpd-border,rgba(99,179,237,0.15)))!important;border-radius:var(--user-radius-lg,var(--mpd-radius,16px))!important;}",
+  ".mpd-card.mpd-jha{background:var(--user-glow-amber,radial-gradient(120% 130% at 50% -10%,rgba(224,162,78,.30) 0%,rgba(160,104,43,.10) 38%,rgba(20,20,23,0) 72%)),var(--user-ink-750,#141417)!important;border:1px solid var(--user-line,rgba(255,255,255,.09))!important;border-radius:var(--user-radius-lg,16px)!important;}",
 ].join('');
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1156,7 +1156,7 @@ class MultiPanelDashboardCard extends HTMLElement {
     // ── Frosted glass class: only on default theme ───────────────────────────
     const isNeon    = (cfg.theme === 'neon');
     const isFrosted = (cfg.theme === 'default' || !cfg.theme) && !!cfg.frosted_glass;
-    const cardCls   = 'mpd-card' + (isFrosted ? ' mpd-frosted' : '');
+    const cardCls   = 'mpd-card' + (isFrosted ? ' mpd-frosted' : '') + (cfg.jha ? ' mpd-jha' : '');
 
     const cardOpen  = isNeon
       ? '<div class="mpd-neon-ring"><div class="' + cardCls + '"><div class="mpd-inner">'
@@ -1615,6 +1615,7 @@ class MultiPanelDashboardCardEditor extends LitElement {
     const isDefault = (cfg.theme === 'default' || !cfg.theme);
     return html`
       ${isDefault ? html`
+        ${this._toggle('✨ Just HA Design', cfg.jha, (v) => this._set('jha', v))}
         ${this._toggle('Frosted Glass Mode', cfg.frosted_glass, (v) => this._set('frosted_glass', v))}
         ${cfg.frosted_glass ? html`
           <p class="hint">
