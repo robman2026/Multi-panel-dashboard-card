@@ -473,6 +473,9 @@ const STYLES = [
   //  truncating. Per-tile colour comes from inline --ac / --tint vars.
   // ════════════════════════════════════════════════════════════════════════
   ".sw-grid,.sensor-grid,.gauge-grid,.power-grid{display:grid;gap:9px;min-width:0;grid-template-columns:repeat(auto-fit,minmax(max(var(--min,150px),calc((100% - (var(--n,2) - 1)*9px) / var(--n,2))),1fr));}",
+  // When the whole card is narrow (phone / squeezed column), drop every
+  // section to single-column rows so names & values never get truncated.
+  ".mpd-inner.bp-sm .sw-grid,.mpd-inner.bp-sm .sensor-grid,.mpd-inner.bp-sm .gauge-grid,.mpd-inner.bp-sm .power-grid,.mpd-inner.bp-xs .sw-grid,.mpd-inner.bp-xs .sensor-grid,.mpd-inner.bp-xs .gauge-grid,.mpd-inner.bp-xs .power-grid{grid-template-columns:1fr;}",
   ".sw-tile,.sensor-tile,.gauge-tile,.power-tile,.salt-tile{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:13px;min-width:0;cursor:pointer;border:1px solid rgba(255,255,255,.05);border-left:4px solid var(--ac,#6b7686);background:linear-gradient(90deg,var(--tint,rgba(255,255,255,.045)),rgba(255,255,255,.02) 75%);transition:transform .1s,filter .15s;}",
   ".sw-tile:hover,.sensor-tile:hover,.gauge-tile:hover,.power-tile:hover,.salt-tile:hover{filter:brightness(1.13);}",
   ".sw-tile:active,.sensor-tile:active,.gauge-tile:active,.power-tile:active,.salt-tile:active{transform:scale(.985);}",
