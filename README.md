@@ -21,6 +21,7 @@ A Samsung Premium-style custom Lovelace card for Home Assistant.
 | 🧂 Salt Level | Big percentage readout, warning threshold, colour per level |
 
 - **"Spectrum" tile design** (v4) — every entity is a clear, colour-coded tile with a large icon, a readable name, a bold state, and (climate/power/salt) a big value
+- **Tap & long-press** — short tap toggles a switch; long-press (≈500 ms) opens the native more-info dialog, just like Home Assistant entity cards
 - Fully configurable in the **visual editor** (no YAML needed)
 - All entity IDs, labels, icons, columns, and color thresholds are editable
 - Samsung Premium dark glassmorphism style — matches the Samsung Laundry Card

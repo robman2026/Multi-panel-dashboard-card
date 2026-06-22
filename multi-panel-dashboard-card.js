@@ -3,9 +3,15 @@
  * Unified single card: header + cameras + sections + devices (mower) + salt + power
  * Author: robman2026
  * GitHub: https://github.com/robman2026/multi-panel-dashboard-card
- * Version: 4.0.0
+ * Version: 4.1.0
  * License: MIT
  *
+ * ─────────────────────────────────────────────────────────────────────────
+ * v4.1.0
+ *  + Long-press (≈500 ms) on any tile opens the native more-info dialog,
+ *    just like Home Assistant entity cards. Short tap still toggles
+ *    switches; a long-press is suppressed from also toggling. Works with
+ *    touch & mouse, cancels on scroll, and gives a subtle haptic buzz.
  * ─────────────────────────────────────────────────────────────────────────
  * v4.0.0 — "Spectrum" tile redesign (new default look)
  *  + Switches, sensors, climate, power and salt are now clear, colour-coded
@@ -33,7 +39,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-const CARD_VERSION = "4.0.0";
+const CARD_VERSION = "4.1.0";
 
 const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
 const html = LitElement.prototype.html;
@@ -476,7 +482,7 @@ const STYLES = [
   // When the whole card is narrow (phone / squeezed column), drop every
   // section to single-column rows so names & values never get truncated.
   ".mpd-inner.bp-sm .sw-grid,.mpd-inner.bp-sm .sensor-grid,.mpd-inner.bp-sm .gauge-grid,.mpd-inner.bp-sm .power-grid,.mpd-inner.bp-xs .sw-grid,.mpd-inner.bp-xs .sensor-grid,.mpd-inner.bp-xs .gauge-grid,.mpd-inner.bp-xs .power-grid{grid-template-columns:1fr;}",
-  ".sw-tile,.sensor-tile,.gauge-tile,.power-tile,.salt-tile{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:13px;min-width:0;cursor:pointer;border:1px solid rgba(255,255,255,.05);border-left:4px solid var(--ac,#6b7686);background:linear-gradient(90deg,var(--tint,rgba(255,255,255,.045)),rgba(255,255,255,.02) 75%);transition:transform .1s,filter .15s;}",
+  ".sw-tile,.sensor-tile,.gauge-tile,.power-tile,.salt-tile{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:13px;min-width:0;cursor:pointer;border:1px solid rgba(255,255,255,.05);border-left:4px solid var(--ac,#6b7686);background:linear-gradient(90deg,var(--tint,rgba(255,255,255,.045)),rgba(255,255,255,.02) 75%);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;transition:transform .1s,filter .15s;}",
   ".sw-tile:hover,.sensor-tile:hover,.gauge-tile:hover,.power-tile:hover,.salt-tile:hover{filter:brightness(1.13);}",
   ".sw-tile:active,.sensor-tile:active,.gauge-tile:active,.power-tile:active,.salt-tile:active{transform:scale(.985);}",
   ".sw-tile.sw-unavail{opacity:.4;pointer-events:none;}",
@@ -1293,8 +1299,34 @@ class MultiPanelDashboardCard extends HTMLElement {
 
   _bindDataAction(el) {
     const self = this;
+    const LONG_MS = 500, MOVE_TOL = 10;
+    let timer = null, longFired = false, startX = 0, startY = 0;
+    const clear = function() { if (timer) { clearTimeout(timer); timer = null; } };
+
+    el.addEventListener('pointerdown', function(e) {
+      if (e.button !== undefined && e.button !== 0) return; // primary button / touch only
+      longFired = false;
+      startX = e.clientX; startY = e.clientY;
+      const entity = el.dataset.entity;
+      if (!entity || entity === 'undefined' || entity === '') return;
+      clear();
+      timer = setTimeout(function() {
+        timer = null;
+        longFired = true;
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
+        self._moreInfo(entity);
+      }, LONG_MS);
+    });
+    el.addEventListener('pointermove', function(e) {
+      if (timer && (Math.abs(e.clientX - startX) > MOVE_TOL || Math.abs(e.clientY - startY) > MOVE_TOL)) clear();
+    });
+    el.addEventListener('pointerup', clear);
+    el.addEventListener('pointercancel', clear);
+    el.addEventListener('pointerleave', clear);
+
     el.addEventListener('click', function(e) {
       e.stopPropagation();
+      if (longFired) { e.preventDefault(); longFired = false; return; } // long-press already handled
       const action = el.dataset.action, entity = el.dataset.entity;
       if (!entity || entity === 'undefined' || entity === '') return;
       if (action === 'toggle') {
