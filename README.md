@@ -15,16 +15,16 @@ A Samsung Premium-style custom Lovelace card for Home Assistant.
 | Section | Details |
 |---|---|
 | 📷 Cameras | Live feed thumbnails, configurable columns, tap to open fullscreen |
-| 🔘 Switches | Configurable grid, state-aware colors, toggle on tap |
-| 📡 Sensors | Doors, motion, lights, person, vibration, tilt — color-coded per state |
-| 🌡️ Climate Gauges | Dual-ring SVG gauge (outer = temp, inner = humidity), colors per threshold |
-| 🧂 Salt Level | Circular progress ring + bar, warning threshold, color per level |
+| 🔘 Switches | Colour-coded tiles, state-aware accent colours, toggle on tap |
+| 📡 Sensors | Doors, motion, lights, person, vibration, tilt — colour-coded per category & state |
+| 🌡️ Climate | Clear tiles with a large temperature value + humidity, colour by threshold |
+| 🧂 Salt Level | Big percentage readout, warning threshold, colour per level |
 
+- **"Spectrum" tile design** (v4) — every entity is a clear, colour-coded tile with a large icon, a readable name, a bold state, and (climate/power/salt) a big value
 - Fully configurable in the **visual editor** (no YAML needed)
-- **Display Size** modes (Compact / Comfortable / Large) — scale up fonts, icons & spacing for clearer reading on wall displays
 - All entity IDs, labels, icons, columns, and color thresholds are editable
 - Samsung Premium dark glassmorphism style — matches the Samsung Laundry Card
-- Responsive: stacks to single column on narrow screens
+- **Responsive:** the column count you set (1–4) acts as a *maximum* — tiles auto-reduce to fewer columns when a section is squeezed, and the whole card stacks to a single column on narrow screens
 
 ---
 
@@ -57,11 +57,6 @@ All configuration is available in the visual editor. Add the card to any dashboa
 
 ```yaml
 type: custom:multi-panel-dashboard-card
-
-# ── Display size (optional) ──
-# compact (default, original) | comfortable | large
-# Scales up fonts, icons and spacing for clearer reading on a wall display.
-text_size: compact
 
 # ── Section labels (optional, defaults shown) ──
 label_surveillance: Surveillance
