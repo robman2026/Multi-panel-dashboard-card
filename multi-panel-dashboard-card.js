@@ -3,9 +3,18 @@
  * Unified single card: header + cameras + sections + devices (mower) + salt + power
  * Author: robman2026
  * GitHub: https://github.com/robman2026/multi-panel-dashboard-card
- * Version: 3.2.0
+ * Version: 3.4.0
  * License: MIT
  *
+ * ─────────────────────────────────────────────────────────────────────────
+ * v3.4.0
+ *  + Display Size mode (readability)
+ *      · New config key: text_size ('compact' | 'comfortable' | 'large')
+ *      · 'compact' is the default — zero visual change for existing configs
+ *      · 'comfortable' / 'large' scale up fonts, icons and tile spacing across
+ *        switches, sensors, gauges, salt, power and mower tiles for clearer
+ *        reading on wall-mounted / large displays
+ *      · Configurable from the "🎨 Appearance" section in the visual editor
  * ─────────────────────────────────────────────────────────────────────────
  * v3.2.0
  *  + Frosted Glass Dark Mode (default theme only)
@@ -21,7 +30,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-const CARD_VERSION = "3.3.0";
+const CARD_VERSION = "3.4.0";
 
 const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
 const html = LitElement.prototype.html;
@@ -312,6 +321,11 @@ function getStubConfig() {
     frosted_opacity: 0.52,
     frosted_blur:    22,
 
+    // ── NEW: Display size / readability ──────────────────────────────────────
+    // 'compact'  = original look (default, zero change for existing configs)
+    // 'comfortable' / 'large' = scaled-up fonts, icons and spacing
+    text_size:       'compact',
+
     // Header
     card_title:      'Dashboard',
     card_icon:       'mdi:view-dashboard',
@@ -580,6 +594,94 @@ const STYLES = [
   //    only by the Just HA theme, e.g. Heimdall). Falls back to the card's own
   //    --mpd-* knobs / original look everywhere else. ──
   ".mpd-card.mpd-jha{background:var(--user-glow-amber,radial-gradient(120% 130% at 50% -10%,rgba(224,162,78,.30) 0%,rgba(160,104,43,.10) 38%,rgba(20,20,23,0) 72%)),var(--user-ink-750,#141417)!important;border:1px solid var(--user-line,rgba(255,255,255,.09))!important;border-radius:var(--user-radius-lg,16px)!important;}",
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  DISPLAY SIZE — Comfortable & Large readability modes
+  //  Opt-in via config `text_size`. Compact (default) = no class = original.
+  //  Scales fonts, icons and spacing so tiles read clearly on a wall display.
+  // ════════════════════════════════════════════════════════════════════════
+
+  // ── Comfortable (~1.25×) ────────────────────────────────────────────────
+  ".mpd-size-comfortable .sec{font-size:11px;letter-spacing:.08em;}",
+  ".mpd-size-comfortable .bottom-grid{gap:14px;}",
+  // Switches
+  ".mpd-size-comfortable .sw-grid{gap:7px;}",
+  ".mpd-size-comfortable .sw-tile{padding:13px 8px;gap:6px;}",
+  ".mpd-size-comfortable .sw-name{font-size:12px;}",
+  ".mpd-size-comfortable .sw-state{font-size:10px;}",
+  ".mpd-size-comfortable .sw-tile svg{width:21px!important;height:21px!important;}",
+  ".mpd-size-comfortable .sw-tile ha-icon{--mdc-icon-size:21px!important;width:21px!important;height:21px!important;}",
+  // Sensors
+  ".mpd-size-comfortable .sensor-grid{gap:7px;}",
+  ".mpd-size-comfortable .sensor-grid.scols-2 .sensor-tile,.mpd-size-comfortable .sensor-grid.scols-3 .sensor-tile,.mpd-size-comfortable .sensor-grid.scols-4 .sensor-tile{padding:11px 6px;}",
+  ".mpd-size-comfortable .sensor-grid.scols-1 .sensor-tile{padding:10px 12px;gap:10px;}",
+  ".mpd-size-comfortable .sensor-icon-wrap{width:32px;height:32px;}",
+  ".mpd-size-comfortable .sensor-icon-wrap svg{width:17px!important;height:17px!important;}",
+  ".mpd-size-comfortable .sensor-icon-wrap ha-icon{--mdc-icon-size:17px!important;width:17px!important;height:17px!important;}",
+  ".mpd-size-comfortable .motion-emoji{font-size:18px;}",
+  ".mpd-size-comfortable .sensor-name{font-size:11px;}",
+  ".mpd-size-comfortable .sensor-val{font-size:12px;}",
+  // Gauges
+  ".mpd-size-comfortable .g-val{font-size:15px;}",
+  ".mpd-size-comfortable .g-sub{font-size:10px;}",
+  ".mpd-size-comfortable .g-name{font-size:11px;}",
+  // Salt
+  ".mpd-size-comfortable .s-val{font-size:14px;}",
+  ".mpd-size-comfortable .s-pct{font-size:10px;}",
+  ".mpd-size-comfortable .salt-title{font-size:11px;}",
+  ".mpd-size-comfortable .salt-meta{font-size:10px;}",
+  ".mpd-size-comfortable .salt-warn{font-size:10px;}",
+  // Power
+  ".mpd-size-comfortable .p-val{font-size:15px;}",
+  ".mpd-size-comfortable .p-unit{font-size:9px;}",
+  ".mpd-size-comfortable .power-name{font-size:11px;}",
+  ".mpd-size-comfortable .p-sub-val{font-size:12px;}",
+  ".mpd-size-comfortable .p-sub-lbl{font-size:9px;}",
+  // Mower
+  ".mpd-size-comfortable .mower-name{font-size:14px;}",
+  ".mpd-size-comfortable .mower-badge{font-size:11px;}",
+  ".mpd-size-comfortable .mower-btn{font-size:12px;}",
+
+  // ── Large (~1.5×) ───────────────────────────────────────────────────────
+  ".mpd-size-large .sec{font-size:13px;letter-spacing:.08em;}",
+  ".mpd-size-large .bottom-grid{gap:16px;}",
+  // Switches
+  ".mpd-size-large .sw-grid{gap:8px;}",
+  ".mpd-size-large .sw-tile{padding:15px 10px;gap:7px;}",
+  ".mpd-size-large .sw-name{font-size:14px;}",
+  ".mpd-size-large .sw-state{font-size:11px;}",
+  ".mpd-size-large .sw-tile svg{width:25px!important;height:25px!important;}",
+  ".mpd-size-large .sw-tile ha-icon{--mdc-icon-size:25px!important;width:25px!important;height:25px!important;}",
+  // Sensors
+  ".mpd-size-large .sensor-grid{gap:8px;}",
+  ".mpd-size-large .sensor-grid.scols-2 .sensor-tile,.mpd-size-large .sensor-grid.scols-3 .sensor-tile,.mpd-size-large .sensor-grid.scols-4 .sensor-tile{padding:13px 7px;}",
+  ".mpd-size-large .sensor-grid.scols-1 .sensor-tile{padding:12px 14px;gap:12px;}",
+  ".mpd-size-large .sensor-icon-wrap{width:38px;height:38px;}",
+  ".mpd-size-large .sensor-icon-wrap svg{width:20px!important;height:20px!important;}",
+  ".mpd-size-large .sensor-icon-wrap ha-icon{--mdc-icon-size:20px!important;width:20px!important;height:20px!important;}",
+  ".mpd-size-large .motion-emoji{font-size:22px;}",
+  ".mpd-size-large .sensor-name{font-size:13px;}",
+  ".mpd-size-large .sensor-val{font-size:14px;}",
+  // Gauges
+  ".mpd-size-large .g-val{font-size:18px;}",
+  ".mpd-size-large .g-sub{font-size:12px;}",
+  ".mpd-size-large .g-name{font-size:13px;}",
+  // Salt
+  ".mpd-size-large .s-val{font-size:16px;}",
+  ".mpd-size-large .s-pct{font-size:12px;}",
+  ".mpd-size-large .salt-title{font-size:13px;}",
+  ".mpd-size-large .salt-meta{font-size:12px;}",
+  ".mpd-size-large .salt-warn{font-size:12px;}",
+  // Power
+  ".mpd-size-large .p-val{font-size:18px;}",
+  ".mpd-size-large .p-unit{font-size:10px;}",
+  ".mpd-size-large .power-name{font-size:13px;}",
+  ".mpd-size-large .p-sub-val{font-size:14px;}",
+  ".mpd-size-large .p-sub-lbl{font-size:10px;}",
+  // Mower
+  ".mpd-size-large .mower-name{font-size:16px;}",
+  ".mpd-size-large .mower-badge{font-size:12px;}",
+  ".mpd-size-large .mower-btn{font-size:13px;}",
 ].join('');
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1156,7 +1258,10 @@ class MultiPanelDashboardCard extends HTMLElement {
     // ── Frosted glass class: only on default theme ───────────────────────────
     const isNeon    = (cfg.theme === 'neon');
     const isFrosted = (cfg.theme === 'default' || !cfg.theme) && !!cfg.frosted_glass;
-    const cardCls   = 'mpd-card' + (isFrosted ? ' mpd-frosted' : '') + (cfg.jha ? ' mpd-jha' : '');
+    const sizeMode  = cfg.text_size || 'compact';
+    const sizeCls   = sizeMode === 'large' ? ' mpd-size-large'
+                    : sizeMode === 'comfortable' ? ' mpd-size-comfortable' : '';
+    const cardCls   = 'mpd-card' + sizeCls + (isFrosted ? ' mpd-frosted' : '') + (cfg.jha ? ' mpd-jha' : '');
 
     const cardOpen  = isNeon
       ? '<div class="mpd-neon-ring"><div class="' + cardCls + '"><div class="mpd-inner">'
@@ -1614,6 +1719,13 @@ class MultiPanelDashboardCardEditor extends LitElement {
     const cfg = this._config;
     const isDefault = (cfg.theme === 'default' || !cfg.theme);
     return html`
+      ${this._seg('Display Size', cfg.text_size || 'compact',
+        [{ val: 'compact', label: 'Compact' }, { val: 'comfortable', label: 'Comfortable' }, { val: 'large', label: 'Large' }],
+        (v) => this._set('text_size', v))}
+      <p class="hint">
+        Scales up fonts, icons and spacing for clearer reading on a wall display.
+        <strong>Compact</strong> is the original layout.
+      </p>
       ${isDefault ? html`
         ${this._toggle('✨ Just HA Design', cfg.jha, (v) => this._set('jha', v))}
         ${this._toggle('Frosted Glass Mode', cfg.frosted_glass, (v) => this._set('frosted_glass', v))}

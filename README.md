@@ -21,6 +21,7 @@ A Samsung Premium-style custom Lovelace card for Home Assistant.
 | 🧂 Salt Level | Circular progress ring + bar, warning threshold, color per level |
 
 - Fully configurable in the **visual editor** (no YAML needed)
+- **Display Size** modes (Compact / Comfortable / Large) — scale up fonts, icons & spacing for clearer reading on wall displays
 - All entity IDs, labels, icons, columns, and color thresholds are editable
 - Samsung Premium dark glassmorphism style — matches the Samsung Laundry Card
 - Responsive: stacks to single column on narrow screens
@@ -56,6 +57,11 @@ All configuration is available in the visual editor. Add the card to any dashboa
 
 ```yaml
 type: custom:multi-panel-dashboard-card
+
+# ── Display size (optional) ──
+# compact (default, original) | comfortable | large
+# Scales up fonts, icons and spacing for clearer reading on a wall display.
+text_size: compact
 
 # ── Section labels (optional, defaults shown) ──
 label_surveillance: Surveillance
