@@ -3,18 +3,21 @@
  * Unified single card: header + cameras + sections + devices (mower) + salt + power
  * Author: robman2026
  * GitHub: https://github.com/robman2026/multi-panel-dashboard-card
- * Version: 3.4.0
+ * Version: 4.0.0
  * License: MIT
  *
  * ─────────────────────────────────────────────────────────────────────────
- * v3.4.0
- *  + Display Size mode (readability)
- *      · New config key: text_size ('compact' | 'comfortable' | 'large')
- *      · 'compact' is the default — zero visual change for existing configs
- *      · 'comfortable' / 'large' scale up fonts, icons and tile spacing across
- *        switches, sensors, gauges, salt, power and mower tiles for clearer
- *        reading on wall-mounted / large displays
- *      · Configurable from the "🎨 Appearance" section in the visual editor
+ * v4.0.0 — "Spectrum" tile redesign (new default look)
+ *  + Switches, sensors, climate, power and salt are now clear, colour-coded
+ *    horizontal tiles: a tinted icon chip, a large readable name, a bold
+ *    state, and (climate/power/salt) a big right-aligned value.
+ *  + Per-tile colour accent by category & state (blue switch, amber motion,
+ *    teal/yellow door, purple person, temp-threshold colour for climate, …).
+ *  + Responsive grids: the configured column count (1–4) is now a MAXIMUM —
+ *    a squeezed section auto-drops to fewer columns so tiles never shrink
+ *    below a readable width, and everything collapses cleanly on mobile.
+ *  - Removed the small circular gauges/arcs in favour of big numbers
+ *    (no more text bleeding through the rings).
  * ─────────────────────────────────────────────────────────────────────────
  * v3.2.0
  *  + Frosted Glass Dark Mode (default theme only)
@@ -30,7 +33,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-const CARD_VERSION = "3.4.0";
+const CARD_VERSION = "4.0.0";
 
 const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
 const html = LitElement.prototype.html;
@@ -149,6 +152,28 @@ function stateAttr(hass, id, attr) { if (!id || !hass) return undefined; const e
 function isOn(s)      { return s === 'on' || s === 'true' || s === 'home' || s === 'open'; }
 function isUnavail(s) { return !s || s === 'unavailable' || s === 'unknown'; }
 function stateLabel(s){ if (!s || isUnavail(s)) return '—'; return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// Convert a #hex (3 or 6 digit) accent into an rgba() tint. Non-hex inputs
+// (e.g. an already-rgba threshold colour) fall back to a neutral white tint.
+function hexToRgba(c, a) {
+  if (typeof c === 'string' && c[0] === '#') {
+    let h = c.slice(1);
+    if (h.length === 3) h = h.split('').map(function(x){ return x + x; }).join('');
+    const n = parseInt(h, 16);
+    if (!isNaN(n)) return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  return 'rgba(255,255,255,' + a + ')';
+}
+
+// Spectrum accent colour for a sensor tile, by category + state.
+function sensorAccent(cat, motion, motionActive, on, unavail) {
+  if (unavail) return '#6b7686';
+  if (motion)  return motionActive ? '#ff9a6d' : '#a855f7';
+  if (cat === 'door')   return on ? '#ffd26d' : '#4fb8a0';
+  if (cat === 'light')  return on ? '#ffc46d' : '#6b7686';
+  if (cat === 'person') return on ? '#a855f7' : '#6b7686';
+  return on ? '#4fa3e0' : '#8aa0c0';
+}
 
 function agoStr(lastChanged) {
   if (!lastChanged) return "";
@@ -321,11 +346,6 @@ function getStubConfig() {
     frosted_opacity: 0.52,
     frosted_blur:    22,
 
-    // ── NEW: Display size / readability ──────────────────────────────────────
-    // 'compact'  = original look (default, zero change for existing configs)
-    // 'comfortable' / 'large' = scaled-up fonts, icons and spacing
-    text_size:       'compact',
-
     // Header
     card_title:      'Dashboard',
     card_icon:       'mdi:view-dashboard',
@@ -399,20 +419,8 @@ const STYLES = [
   ".mpd-frosted{background:var(--mpd-fg-bg,rgba(8,14,30,0.52))!important;backdrop-filter:blur(var(--mpd-fg-blur,22px)) saturate(180%)!important;-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px)) saturate(180%)!important;border:1px solid rgba(255,255,255,0.09)!important;box-shadow:0 8px 40px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.07)!important;}",
   // Suppress the blob decoration so it doesn't bleed through the glass
   ".mpd-frosted::before{display:none!important;}",
-  // All tile types in frosted mode
-  ".mpd-frosted .sw-tile{background:rgba(255,255,255,0.05)!important;backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;border-color:rgba(255,255,255,0.1)!important;}",
-  ".mpd-frosted .sw-tile:hover{background:rgba(255,255,255,0.09)!important;}",
-  ".mpd-frosted .sw-tile.sw-on{background:rgba(79,163,224,0.12)!important;border-color:rgba(79,163,224,0.28)!important;}",
-  ".mpd-frosted .sw-tile.sw-motion{background:rgba(255,170,80,0.12)!important;border-color:rgba(255,170,80,0.28)!important;}",
-  ".mpd-frosted .sensor-tile{background:rgba(255,255,255,0.05)!important;backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;border-color:rgba(255,255,255,0.1)!important;}",
-  ".mpd-frosted .sensor-tile:hover{background:rgba(255,255,255,0.09)!important;}",
-  ".mpd-frosted .sensor-tile.motion-active{background:rgba(255,170,80,0.12)!important;border-color:rgba(255,170,80,0.28)!important;}",
-  ".mpd-frosted .gauge-tile{background:rgba(255,255,255,0.05)!important;backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;border-color:rgba(255,255,255,0.1)!important;}",
-  ".mpd-frosted .gauge-tile:hover{background:rgba(255,255,255,0.09)!important;}",
-  ".mpd-frosted .salt-tile{background:rgba(255,255,255,0.05)!important;backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;border-color:rgba(255,255,255,0.1)!important;}",
-  ".mpd-frosted .salt-tile:hover{background:rgba(255,255,255,0.09)!important;}",
-  ".mpd-frosted .power-tile{background:rgba(255,255,255,0.05)!important;backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;border-color:rgba(255,255,255,0.1)!important;}",
-  ".mpd-frosted .power-tile:hover{background:rgba(255,255,255,0.09)!important;}",
+  // Spectrum tiles in frosted mode: keep the colour accent, just add the blur
+  ".mpd-frosted .sw-tile,.mpd-frosted .sensor-tile,.mpd-frosted .gauge-tile,.mpd-frosted .salt-tile,.mpd-frosted .power-tile{backdrop-filter:blur(var(--mpd-fg-blur,22px));-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px));}",
   ".mpd-frosted .mower-tile{background:rgba(34,197,94,0.07)!important;backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;-webkit-backdrop-filter:blur(var(--mpd-fg-blur,22px))!important;border-color:rgba(34,197,94,0.18)!important;}",
   ".mpd-frosted .mower-tile.st-error{background:rgba(239,68,68,0.07)!important;border-color:rgba(239,68,68,0.22)!important;}",
   ".mpd-frosted .mower-tile.st-docked{background:rgba(99,179,237,0.06)!important;border-color:rgba(99,179,237,0.18)!important;}",
@@ -458,80 +466,33 @@ const STYLES = [
   ".mpd-inner.bp-sm .sec{letter-spacing:.06em;font-size:8px;}",
   ".sec-col{min-width:0;}",
 
-  // Switches
-  ".sw-grid{display:grid;gap:5px;min-width:0;}",
-  ".sw-tile{background:var(--mpd-tile-bg,rgba(255,255,255,.03));border:1px solid var(--mpd-tile-border,rgba(255,255,255,.05));border-radius:9px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;transition:background .15s,border-color .15s,transform .1s;}",
-  ".sw-tile:hover{background:var(--mpd-tile-hover,rgba(255,255,255,.06));}",
-  ".sw-tile:active{transform:scale(.97);}",
-  ".sw-tile.sw-on{background:rgba(79,163,224,.07);border-color:rgba(79,163,224,.2);}",
-  ".sw-tile.sw-motion{background:rgba(255,170,80,.07);border-color:rgba(255,170,80,.2);}",
-  ".sw-tile.sw-unavail{opacity:.35;pointer-events:none;}",
-  ".sw-name{font-size:9px;font-weight:500;color:var(--mpd-text-dim,rgba(255,255,255,.75));text-align:center;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;}",
-  ".sw-state{font-size:8px;letter-spacing:.06em;text-transform:uppercase;font-family:'DM Mono',monospace;color:rgba(255,255,255,.28);}",
-  ".sw-state.s-on{color:#6dbfff;}.sw-state.s-motion{color:#ffaa6d;}.sw-state.s-open{color:#ffd26d;}",
+  // ════════════════════════════════════════════════════════════════════════
+  //  SPECTRUM TILES — colour-coded horizontal tiles (default design)
+  //  Grid is responsive: up to --n columns, but tiles never get narrower than
+  //  --min, so a squeezed section auto-drops to fewer columns instead of
+  //  truncating. Per-tile colour comes from inline --ac / --tint vars.
+  // ════════════════════════════════════════════════════════════════════════
+  ".sw-grid,.sensor-grid,.gauge-grid,.power-grid{display:grid;gap:9px;min-width:0;grid-template-columns:repeat(auto-fit,minmax(max(var(--min,150px),calc((100% - (var(--n,2) - 1)*9px) / var(--n,2))),1fr));}",
+  ".sw-tile,.sensor-tile,.gauge-tile,.power-tile,.salt-tile{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:13px;min-width:0;cursor:pointer;border:1px solid rgba(255,255,255,.05);border-left:4px solid var(--ac,#6b7686);background:linear-gradient(90deg,var(--tint,rgba(255,255,255,.045)),rgba(255,255,255,.02) 75%);transition:transform .1s,filter .15s;}",
+  ".sw-tile:hover,.sensor-tile:hover,.gauge-tile:hover,.power-tile:hover,.salt-tile:hover{filter:brightness(1.13);}",
+  ".sw-tile:active,.sensor-tile:active,.gauge-tile:active,.power-tile:active,.salt-tile:active{transform:scale(.985);}",
+  ".sw-tile.sw-unavail{opacity:.4;pointer-events:none;}",
+  ".spx-ic{width:36px;height:36px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--tint,rgba(255,255,255,.06));color:var(--ac,rgba(255,255,255,.5));}",
+  ".spx-ic .motion-emoji{font-size:19px;line-height:1;}",
+  ".spx-tx{min-width:0;flex:1;}",
+  ".spx-name{font-size:14px;font-weight:600;color:var(--mpd-title-color,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+  ".spx-state{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:2px;color:var(--ac,rgba(255,255,255,.4));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+  ".spx-sub{font-size:11.5px;color:var(--mpd-text-dim,rgba(255,255,255,.55));margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+  ".spx-right{flex-shrink:0;text-align:right;align-self:center;}",
+  ".spx-big{font-size:21px;font-weight:800;font-family:'DM Mono',monospace;color:var(--ac,#fff);line-height:1;white-space:nowrap;}",
+  ".spx-unit{font-size:12px;font-weight:600;color:var(--mpd-text-dim,rgba(255,255,255,.5));margin-left:1px;}",
+  ".spx-warn{font-size:10.5px;color:#ffd26d;margin-top:4px;display:flex;align-items:center;gap:3px;white-space:nowrap;}",
 
-  // Sensors (with motion icon treatment)
-  ".sensor-grid{display:grid;gap:5px;min-width:0;}",
-  ".sensor-grid.scols-1 .sensor-tile{flex-direction:row;padding:7px 9px;text-align:left;gap:8px;}",
-  ".sensor-grid.scols-1 .sensor-name{flex:1;text-align:left;}",
-  ".sensor-grid.scols-2 .sensor-tile,.sensor-grid.scols-3 .sensor-tile,.sensor-grid.scols-4 .sensor-tile{flex-direction:column;padding:8px 4px;text-align:center;}",
-  ".sensor-tile{background:var(--mpd-tile-bg,rgba(255,255,255,.03));border:1px solid var(--mpd-tile-border,rgba(255,255,255,.05));border-radius:9px;display:flex;align-items:center;gap:4px;cursor:pointer;transition:background .15s;min-width:0;overflow:hidden;}",
-  ".sensor-tile:hover{background:var(--mpd-tile-hover,rgba(255,255,255,.06));}",
-  ".sensor-tile.motion-active{background:rgba(255,170,80,.08);border-color:rgba(255,170,80,.22);}",
-  ".sensor-icon-wrap{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.04);flex-shrink:0;}",
-  ".sensor-icon-wrap.motion-active{background:rgba(255,170,80,.12);animation:motion-pulse 1.4s ease-in-out infinite;}",
-  ".sensor-icon-wrap.motion-clear{background:rgba(255,255,255,.04);}",
-  "@keyframes motion-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,170,80,.35);}50%{box-shadow:0 0 0 5px rgba(255,170,80,0);}}",
-  ".motion-emoji{font-size:14px;line-height:1;}",
-  ".motion-emoji.clear{filter:grayscale(0) opacity(.9);}",
-  ".sensor-name{font-size:8px;color:var(--mpd-text-dim,rgba(255,255,255,.7));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;min-width:0;}",
-  ".sensor-val{font-size:9px;font-weight:500;font-family:'DM Mono',monospace;color:rgba(255,255,255,.8);flex-shrink:0;min-width:0;}",
-  ".sv-on{color:#6dbfff;}.sv-open{color:#ffd26d;}.sv-motion{color:#ff8a6d;}.sv-off{color:rgba(255,255,255,.7);}",
+  // Sensors — motion-active gives the icon chip a gentle pulse
+  "@keyframes motion-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,170,80,.30);}50%{box-shadow:0 0 0 6px rgba(255,170,80,0);}}",
+  ".sensor-tile.motion-active .spx-ic{animation:motion-pulse 1.6s ease-in-out infinite;}",
 
-  // Gauges
-  ".gauge-grid{display:grid;gap:7px;min-width:0;}",
-  ".gauge-grid.gcols-1 .gauge-tile{flex-direction:row;}.gauge-grid.gcols-1 .g-name{text-align:left;}",
-  ".gauge-grid.gcols-2 .gauge-tile,.gauge-grid.gcols-3 .gauge-tile{flex-direction:column;align-items:center;}",
-  ".gauge-grid.gcols-2 .g-name,.gauge-grid.gcols-3 .g-name{text-align:center;}",
-  ".gauge-tile{background:var(--mpd-tile-bg,rgba(255,255,255,.03));border:1px solid var(--mpd-tile-border,rgba(255,255,255,.06));border-radius:11px;padding:10px 8px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .15s;min-width:0;overflow:hidden;}",
-  ".gauge-tile:hover{background:var(--mpd-tile-hover,rgba(255,255,255,.06));}",
-  ".gauge-wrap{position:relative;flex-shrink:0;width:54px;height:54px;}",
-  ".gauge-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}",
-  ".g-val{font-size:12px;font-weight:600;display:block;line-height:1.15;font-family:'DM Mono',monospace;}",
-  ".g-sub{font-size:8px;display:block;margin-top:1px;font-family:'DM Mono',monospace;}",
-  ".g-name{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--mpd-text-dim,rgba(255,255,255,.8));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}",
-
-  // Salt
-  ".salt-tile{background:var(--mpd-tile-bg,rgba(255,255,255,.03));border:1px solid var(--mpd-tile-border,rgba(255,255,255,.06));border-radius:11px;padding:10px 12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s;min-width:0;overflow:hidden;}",
-  ".salt-tile:hover{background:var(--mpd-tile-hover,rgba(255,255,255,.06));}",
-  ".salt-wrap{position:relative;flex-shrink:0;width:60px;height:60px;}",
-  ".salt-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}",
-  ".s-val{font-size:11px;font-weight:600;color:rgba(255,255,255,.9);font-family:'DM Mono',monospace;display:block;line-height:1.1;}",
-  ".s-pct{font-size:8px;color:rgba(255,255,255,.38);display:block;}",
-  ".salt-info{flex:1;min-width:0;overflow:hidden;}",
-  ".salt-title{font-size:9px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--mpd-text-dim,rgba(255,255,255,.8));margin-bottom:5px;}",
-  ".salt-bar-wrap{background:rgba(255,255,255,.06);border-radius:3px;height:3px;overflow:hidden;margin-bottom:4px;}",
-  ".salt-bar{height:3px;border-radius:3px;transition:width .6s;}",
-  ".salt-meta{font-size:8px;color:rgba(255,255,255,.5);font-family:'DM Mono',monospace;}",
-  ".salt-warn{font-size:8px;color:#ffd26d;margin-top:3px;display:flex;align-items:center;gap:3px;}",
-
-  // Power
-  ".power-grid{display:grid;gap:7px;min-width:0;}",
-  ".power-grid.pcols-1 .power-tile{flex-direction:row;}.power-grid.pcols-1 .power-name{text-align:left;}",
-  ".power-grid.pcols-2 .power-tile,.power-grid.pcols-3 .power-tile{flex-direction:column;align-items:center;}",
-  ".power-grid.pcols-2 .power-name,.power-grid.pcols-3 .power-name{text-align:center;}",
-  ".power-tile{background:var(--mpd-tile-bg,rgba(255,255,255,.03));border:1px solid var(--mpd-tile-border,rgba(255,255,255,.06));border-radius:11px;padding:10px 8px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .15s;min-width:0;overflow:hidden;}",
-  ".power-tile:hover{background:var(--mpd-tile-hover,rgba(255,255,255,.06));}",
-  ".power-arc-wrap{position:relative;flex-shrink:0;width:52px;height:52px;}",
-  ".power-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}",
-  ".p-val{font-size:12px;font-weight:600;color:rgba(255,255,255,.9);font-family:'DM Mono',monospace;line-height:1;}",
-  ".p-unit{font-size:7px;color:rgba(255,255,255,.7);letter-spacing:.04em;text-transform:uppercase;}",
-  ".power-info{min-width:0;overflow:hidden;}",
-  ".power-name{font-size:8px;color:var(--mpd-text-dim,rgba(255,255,255,.8));letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
-  ".power-subs{display:flex;gap:8px;flex-wrap:wrap;}",
-  ".p-sub{display:flex;flex-direction:column;}",
-  ".p-sub-val{font-size:9px;font-weight:600;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace;}",
-  ".p-sub-lbl{font-size:7px;color:rgba(255,255,255,.7);letter-spacing:.05em;text-transform:uppercase;}",
+  // (Climate gauges, Salt and Power tiles all share the Spectrum tile styles above)
 
   // Devices (mower)
   ".devices-wrap{display:flex;flex-direction:column;gap:8px;}",
@@ -568,8 +529,6 @@ const STYLES = [
   ":host(.mpd-neon-host) .salt-tile{border-color:rgba(255,255,255,.08);}",
   ":host(.mpd-neon-host) .power-tile{border-color:rgba(255,255,255,.08);transition:box-shadow .2s;}",
   ":host(.mpd-neon-host) .power-tile:hover{border-color:var(--mpd-neon-c1,#00d4ff);box-shadow:0 0 10px rgba(0,212,255,.2);}",
-  ":host(.mpd-neon-host) .sensor-icon-wrap{border:1px solid rgba(255,255,255,.06);}",
-  ":host(.mpd-neon-host) .sensor-icon-wrap.motion-active{border-color:var(--mpd-neon-c1,#00d4ff);box-shadow:0 0 8px rgba(0,212,255,.4);}",
   ":host(.mpd-neon-host) .mpd-dot.online{background:var(--mpd-neon-c1,#00d4ff);box-shadow:0 0 12px var(--mpd-neon-c1,#00d4ff);}",
   ":host(.mpd-neon-host) .sec-dot{filter:drop-shadow(0 0 4px currentColor);}",
   ":host(.mpd-neon-host) .cam-tile{border-color:rgba(255,255,255,.08);transition:border-color .2s,box-shadow .2s;}",
@@ -595,93 +554,6 @@ const STYLES = [
   //    --mpd-* knobs / original look everywhere else. ──
   ".mpd-card.mpd-jha{background:var(--user-glow-amber,radial-gradient(120% 130% at 50% -10%,rgba(224,162,78,.30) 0%,rgba(160,104,43,.10) 38%,rgba(20,20,23,0) 72%)),var(--user-ink-750,#141417)!important;border:1px solid var(--user-line,rgba(255,255,255,.09))!important;border-radius:var(--user-radius-lg,16px)!important;}",
 
-  // ════════════════════════════════════════════════════════════════════════
-  //  DISPLAY SIZE — Comfortable & Large readability modes
-  //  Opt-in via config `text_size`. Compact (default) = no class = original.
-  //  Scales fonts, icons and spacing so tiles read clearly on a wall display.
-  // ════════════════════════════════════════════════════════════════════════
-
-  // ── Comfortable (~1.25×) ────────────────────────────────────────────────
-  ".mpd-size-comfortable .sec{font-size:11px;letter-spacing:.08em;}",
-  ".mpd-size-comfortable .bottom-grid{gap:14px;}",
-  // Switches
-  ".mpd-size-comfortable .sw-grid{gap:7px;}",
-  ".mpd-size-comfortable .sw-tile{padding:13px 8px;gap:6px;}",
-  ".mpd-size-comfortable .sw-name{font-size:12px;}",
-  ".mpd-size-comfortable .sw-state{font-size:10px;}",
-  ".mpd-size-comfortable .sw-tile svg{width:21px!important;height:21px!important;}",
-  ".mpd-size-comfortable .sw-tile ha-icon{--mdc-icon-size:21px!important;width:21px!important;height:21px!important;}",
-  // Sensors
-  ".mpd-size-comfortable .sensor-grid{gap:7px;}",
-  ".mpd-size-comfortable .sensor-grid.scols-2 .sensor-tile,.mpd-size-comfortable .sensor-grid.scols-3 .sensor-tile,.mpd-size-comfortable .sensor-grid.scols-4 .sensor-tile{padding:11px 6px;}",
-  ".mpd-size-comfortable .sensor-grid.scols-1 .sensor-tile{padding:10px 12px;gap:10px;}",
-  ".mpd-size-comfortable .sensor-icon-wrap{width:32px;height:32px;}",
-  ".mpd-size-comfortable .sensor-icon-wrap svg{width:17px!important;height:17px!important;}",
-  ".mpd-size-comfortable .sensor-icon-wrap ha-icon{--mdc-icon-size:17px!important;width:17px!important;height:17px!important;}",
-  ".mpd-size-comfortable .motion-emoji{font-size:18px;}",
-  ".mpd-size-comfortable .sensor-name{font-size:11px;}",
-  ".mpd-size-comfortable .sensor-val{font-size:12px;}",
-  // Gauges
-  ".mpd-size-comfortable .g-val{font-size:15px;}",
-  ".mpd-size-comfortable .g-sub{font-size:10px;}",
-  ".mpd-size-comfortable .g-name{font-size:11px;}",
-  // Salt
-  ".mpd-size-comfortable .s-val{font-size:14px;}",
-  ".mpd-size-comfortable .s-pct{font-size:10px;}",
-  ".mpd-size-comfortable .salt-title{font-size:11px;}",
-  ".mpd-size-comfortable .salt-meta{font-size:10px;}",
-  ".mpd-size-comfortable .salt-warn{font-size:10px;}",
-  // Power
-  ".mpd-size-comfortable .p-val{font-size:15px;}",
-  ".mpd-size-comfortable .p-unit{font-size:9px;}",
-  ".mpd-size-comfortable .power-name{font-size:11px;}",
-  ".mpd-size-comfortable .p-sub-val{font-size:12px;}",
-  ".mpd-size-comfortable .p-sub-lbl{font-size:9px;}",
-  // Mower
-  ".mpd-size-comfortable .mower-name{font-size:14px;}",
-  ".mpd-size-comfortable .mower-badge{font-size:11px;}",
-  ".mpd-size-comfortable .mower-btn{font-size:12px;}",
-
-  // ── Large (~1.5×) ───────────────────────────────────────────────────────
-  ".mpd-size-large .sec{font-size:13px;letter-spacing:.08em;}",
-  ".mpd-size-large .bottom-grid{gap:16px;}",
-  // Switches
-  ".mpd-size-large .sw-grid{gap:8px;}",
-  ".mpd-size-large .sw-tile{padding:15px 10px;gap:7px;}",
-  ".mpd-size-large .sw-name{font-size:14px;}",
-  ".mpd-size-large .sw-state{font-size:11px;}",
-  ".mpd-size-large .sw-tile svg{width:25px!important;height:25px!important;}",
-  ".mpd-size-large .sw-tile ha-icon{--mdc-icon-size:25px!important;width:25px!important;height:25px!important;}",
-  // Sensors
-  ".mpd-size-large .sensor-grid{gap:8px;}",
-  ".mpd-size-large .sensor-grid.scols-2 .sensor-tile,.mpd-size-large .sensor-grid.scols-3 .sensor-tile,.mpd-size-large .sensor-grid.scols-4 .sensor-tile{padding:13px 7px;}",
-  ".mpd-size-large .sensor-grid.scols-1 .sensor-tile{padding:12px 14px;gap:12px;}",
-  ".mpd-size-large .sensor-icon-wrap{width:38px;height:38px;}",
-  ".mpd-size-large .sensor-icon-wrap svg{width:20px!important;height:20px!important;}",
-  ".mpd-size-large .sensor-icon-wrap ha-icon{--mdc-icon-size:20px!important;width:20px!important;height:20px!important;}",
-  ".mpd-size-large .motion-emoji{font-size:22px;}",
-  ".mpd-size-large .sensor-name{font-size:13px;}",
-  ".mpd-size-large .sensor-val{font-size:14px;}",
-  // Gauges
-  ".mpd-size-large .g-val{font-size:18px;}",
-  ".mpd-size-large .g-sub{font-size:12px;}",
-  ".mpd-size-large .g-name{font-size:13px;}",
-  // Salt
-  ".mpd-size-large .s-val{font-size:16px;}",
-  ".mpd-size-large .s-pct{font-size:12px;}",
-  ".mpd-size-large .salt-title{font-size:13px;}",
-  ".mpd-size-large .salt-meta{font-size:12px;}",
-  ".mpd-size-large .salt-warn{font-size:12px;}",
-  // Power
-  ".mpd-size-large .p-val{font-size:18px;}",
-  ".mpd-size-large .p-unit{font-size:10px;}",
-  ".mpd-size-large .power-name{font-size:13px;}",
-  ".mpd-size-large .p-sub-val{font-size:14px;}",
-  ".mpd-size-large .p-sub-lbl{font-size:10px;}",
-  // Mower
-  ".mpd-size-large .mower-name{font-size:16px;}",
-  ".mpd-size-large .mower-badge{font-size:12px;}",
-  ".mpd-size-large .mower-btn{font-size:13px;}",
 ].join('');
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1081,14 +953,14 @@ class MultiPanelDashboardCard extends HTMLElement {
     const swHTML = (cfg.switches || []).map(function(sw, i) {
       const state    = stateVal(hass, sw.entity);
       const on       = isOn(state), unavail = isUnavail(state), motion = sw.category === 'motion';
-      const cls = 'sw-tile' + (unavail ? ' sw-unavail' : motion && on ? ' sw-motion' : on ? ' sw-on' : '');
-      const icolor = unavail ? 'rgba(255,255,255,.2)' : motion && on ? '#ffaa6d' : on ? '#6dbfff' : 'rgba(255,255,255,.4)';
-      const scls   = motion && on ? 's-motion' : on ? 's-on' : '';
-      const stxt   = unavail ? 'N/A' : motion ? (on ? 'Detected' : 'Clear') : stateLabel(state);
-      return '<div class="' + cls + '" data-action="toggle" data-entity="' + (sw.entity||'') + '" data-idx="' + i + '">' +
-        renderIcon(sw.icon || 'switch_icon', icolor, 17) +
-        '<span class="sw-name">' + (sw.label||'—') + '</span>' +
-        '<span class="sw-state ' + scls + '">' + stxt + '</span>' +
+      const active   = on && !unavail;
+      const accent   = unavail ? '#6b7686' : (motion && on) ? '#ff9a6d' : on ? '#4fa3e0' : '#6b7686';
+      const tint     = hexToRgba(accent, active ? 0.16 : 0.06);
+      const cls      = 'sw-tile' + (unavail ? ' sw-unavail' : motion && on ? ' sw-motion' : on ? ' sw-on' : '');
+      const stxt     = unavail ? 'N/A' : motion ? (on ? 'Detected' : 'Clear') : stateLabel(state);
+      return '<div class="' + cls + '" style="--ac:' + accent + ';--tint:' + tint + '" data-action="toggle" data-entity="' + (sw.entity||'') + '" data-idx="' + i + '">' +
+        '<div class="spx-ic">' + renderIcon(sw.icon || 'switch_icon', 'currentColor', 21) + '</div>' +
+        '<div class="spx-tx"><div class="spx-name">' + (sw.label||'—') + '</div><div class="spx-state">' + stxt + '</div></div>' +
         '</div>';
     }).join('');
 
@@ -1099,8 +971,10 @@ class MultiPanelDashboardCard extends HTMLElement {
       const dc    = stateAttr(hass, s.entity, 'device_class') || '';
       const motion = cat === 'motion' || isMotionSensor(s.entity, dc);
       const motionActive = motion && MOTION_ACTIVE.includes((state || '').toLowerCase());
+      const active = motion ? motionActive : on;
+      const accent = sensorAccent(cat, motion, motionActive, on, unavail);
+      const tint   = hexToRgba(accent, active ? 0.16 : 0.10);
 
-      const vcls   = 'sensor-val' + (motion && motionActive ? ' sv-motion' : cat === 'door' && on ? ' sv-open' : on ? ' sv-on' : !unavail && !on ? ' sv-off' : '');
       const disp   = unavail ? '—'
                   : motion ? (motionActive ? 'Detected' : 'Clear')
                   : cat === 'door'  ? (on ? 'Open' : 'Closed')
@@ -1108,45 +982,32 @@ class MultiPanelDashboardCard extends HTMLElement {
                   : cat === 'person'? (on ? 'Home' : 'Away')
                   : stateLabel(state);
 
-      let iconHTML;
-      if (motion) {
-        const wrapCls = motionActive ? 'sensor-icon-wrap motion-active' : 'sensor-icon-wrap motion-clear';
-        const emojiCls = motionActive ? 'motion-emoji' : 'motion-emoji clear';
-        iconHTML = '<div class="' + wrapCls + '"><span class="' + emojiCls + '">🚶</span></div>';
-      } else {
-        const icolor = cat === 'door' && on ? '#ffd26d'
-                    : on ? '#6dbfff'
-                    : 'rgba(255,255,255,.4)';
-        iconHTML = '<div class="sensor-icon-wrap">' + renderIcon(s.icon || CATEGORY_ICON[cat] || 'sensor', icolor, 13) + '</div>';
-      }
+      const iconInner = motion
+        ? '<span class="motion-emoji">🚶</span>'
+        : renderIcon(s.icon || CATEGORY_ICON[cat] || 'sensor', 'currentColor', 21);
 
       const tileCls = 'sensor-tile' + (motion && motionActive ? ' motion-active' : '');
-      return '<div class="' + tileCls + '" data-action="more-info" data-entity="' + (s.entity||'') + '" data-idx="' + i + '">' +
-        iconHTML +
-        '<div class="sensor-name">' + (s.label||'—') + '</div>' +
-        '<div class="' + vcls + '">' + disp + '</div>' +
+      return '<div class="' + tileCls + '" style="--ac:' + accent + ';--tint:' + tint + '" data-action="more-info" data-entity="' + (s.entity||'') + '" data-idx="' + i + '">' +
+        '<div class="spx-ic">' + iconInner + '</div>' +
+        '<div class="spx-tx"><div class="spx-name">' + (s.label||'—') + '</div><div class="spx-state">' + disp + '</div></div>' +
         '</div>';
     }).join('');
 
-    // Climate gauges
+    // Climate gauges → Spectrum tiles (icon + name + humidity, big temp)
     const gCols = parseInt(cfg.gauges_columns) || 2;
     const gaugesHTML = (cfg.gauges || []).map(function(g, i) {
-      const size      = parseInt(g.gauge_size) || 54;
       const tempVal   = stateNum(hass, g.temp_entity), humVal = stateNum(hass, g.humidity_entity);
       const tempTh    = parseTh(g.temp_thresholds, DEFAULT_THRESHOLDS.temperature);
-      const humTh     = parseTh(g.hum_thresholds,  DEFAULT_THRESHOLDS.humidity);
-      const tempColor = colorFromThresholds(tempVal, tempTh), humColor = colorFromThresholds(humVal, humTh);
-      const tempPct   = Math.min(1, Math.max(0, tempVal / 50)), humPct = Math.min(1, Math.max(0, humVal / 100));
+      const tempColor = colorFromThresholds(tempVal, tempTh);
+      const accent    = (g.temp_entity && typeof tempColor === 'string' && tempColor[0] === '#') ? tempColor : '#6ddb99';
+      const tint      = hexToRgba(accent, 0.15);
       const tempStr   = g.temp_entity     ? tempVal.toFixed(1) + '°C' : '—';
       const humStr    = g.humidity_entity ? humVal.toFixed(1)  + '%'  : '—';
-      return '<div class="gauge-tile" data-action="more-info" data-entity="' + (g.temp_entity||'') + '" data-idx="' + i + '">' +
-        '<div class="gauge-wrap" style="width:' + size + 'px;height:' + size + 'px">' +
-        gaugeSVG(size, tempPct, tempColor, humPct, humColor) +
-        '<div class="gauge-center">' +
-        '<span class="g-val" id="g-temp-' + i + '" style="color:' + tempColor + '">' + tempStr + '</span>' +
-        '<span class="g-sub" id="g-hum-'  + i + '" style="color:' + humColor  + '">' + humStr  + '</span>' +
-        '</div></div>' +
-        '<div class="g-name">' + (g.label||('Gauge '+(i+1))) + '</div>' +
+      return '<div class="gauge-tile" style="--ac:' + accent + ';--tint:' + tint + '" data-action="more-info" data-entity="' + (g.temp_entity||'') + '" data-idx="' + i + '">' +
+        '<div class="spx-ic">' + renderIcon('thermometer', 'currentColor', 21) + '</div>' +
+        '<div class="spx-tx"><div class="spx-name">' + (g.label||('Gauge '+(i+1))) + '</div>' +
+          '<div class="spx-sub">💧 <span class="g-hum">' + humStr + '</span> humidity</div></div>' +
+        '<div class="spx-right"><span class="spx-big g-temp">' + tempStr + '</span></div>' +
         '</div>';
     }).join('');
 
@@ -1164,56 +1025,40 @@ class MultiPanelDashboardCard extends HTMLElement {
     const saltTh      = parseTh(cfg.salt_thresholds, DEFAULT_THRESHOLDS.salt);
     const saltColor   = colorFromThresholds(parseFloat(saltPctDisp), saltTh);
     const saltWarn    = parseFloat(saltPctDisp) < (cfg.salt_warn_threshold || 30);
-    const saltSize    = 60;
     const saltClickEntity = cfg.salt_pct_entity || cfg.salt_entity || '';
+    const saltAccent  = (typeof saltColor === 'string' && saltColor[0] === '#') ? saltColor : '#e0b44f';
     const saltHTML = hasSalt ? (
       '<div class="divider" style="margin:10px 0 8px"></div>' +
       '<div class="sec" style="margin-bottom:8px">' +
         '<span class="sec-dot" style="background:#ffd26d;box-shadow:0 0 5px #ffd26d"></span>' +
         (cfg.label_salt || 'Salt Level') +
       '</div>' +
-      '<div class="salt-tile" data-action="more-info" data-entity="' + saltClickEntity + '">' +
-        '<div class="salt-wrap" style="width:' + saltSize + 'px;height:' + saltSize + 'px">' +
-          saltSVG(saltSize, saltPct, saltColor) +
-          '<div class="salt-center">' +
-            '<span class="s-val">' + saltMainDisp + '</span>' +
-            '<span class="s-pct">' + saltDistDisp + '</span>' +
-          '</div>' +
+      '<div class="salt-tile" style="--ac:' + saltAccent + ';--tint:' + hexToRgba(saltAccent, 0.14) + '" data-action="more-info" data-entity="' + saltClickEntity + '">' +
+        '<div class="spx-tx"><div class="spx-name">' + (cfg.salt_label || 'Salt Level') + '</div>' +
+          '<div class="spx-sub salt-meta">' + saltMetaDisp + '</div>' +
+          (saltWarn ? '<div class="spx-warn"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffd26d" stroke-width="2.5" stroke-linecap="round"><path d="' + MDI.warning + '"/></svg>Below ' + (cfg.salt_warn_threshold||30) + '% — buy salt!</div>' : '') +
         '</div>' +
-        '<div class="salt-info">' +
-          '<div class="salt-title">' + (cfg.salt_label || 'Salt Level') + '</div>' +
-          '<div class="salt-bar-wrap"><div class="salt-bar" style="width:' + saltPctDisp + '%;background:' + saltColor + '"></div></div>' +
-          '<div class="salt-meta">' + saltMetaDisp + '</div>' +
-          (saltWarn ? '<div class="salt-warn"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffd26d" stroke-width="2.5" stroke-linecap="round"><path d="' + MDI.warning + '"/></svg>Below ' + (cfg.salt_warn_threshold||30) + '% — buy salt!</div>' : '') +
-        '</div>' +
+        '<div class="spx-right"><span class="spx-big s-val">' + saltMainDisp + '</span></div>' +
       '</div>'
     ) : '';
 
-    // Power
+    // Power → Spectrum tiles (name + energy/current, big watts)
     const pCols = parseInt(cfg.power_columns) || 2;
-    const pSize = pCols >= 2 ? 52 : 60;
     const powerHTML = (cfg.power_circuits || []).map(function(p, i) {
       const watts   = stateNum(hass, p.entity);
-      const maxW    = parseFloat(p.max_w) || 3000;
-      const pct     = Math.min(1, Math.max(0, watts / maxW));
       const pTh     = parseTh(p.power_thresholds, DEFAULT_THRESHOLDS.power);
       const pcolor  = colorFromThresholds(watts, pTh);
+      const accent  = (watts > 0 && typeof pcolor === 'string' && pcolor[0] === '#') ? pcolor : '#7a8aa0';
+      const tint    = hexToRgba(accent, 0.14);
       const energy  = p.energy_entity  ? stateNum(hass, p.energy_entity).toFixed(2)  : null;
       const current = p.current_entity ? stateNum(hass, p.current_entity).toFixed(2) : null;
-      const subs = (energy  ? '<div class="p-sub"><div class="p-sub-val">' + energy  + 'kWh</div><div class="p-sub-lbl">Energy</div></div>'  : '') +
-                   (current ? '<div class="p-sub"><div class="p-sub-val">' + current + 'A</div><div class="p-sub-lbl">Current</div></div>' : '');
-      return '<div class="power-tile" data-action="more-info" data-entity="' + (p.entity||'') + '" data-idx="' + i + '">' +
-        '<div class="power-arc-wrap" style="width:' + pSize + 'px;height:' + pSize + 'px">' +
-          powerSVG(pSize, pct, pcolor) +
-          '<div class="power-center">' +
-            '<span class="p-val" style="color:' + pcolor + '">' + Math.round(watts) + '</span>' +
-            '<span class="p-unit">W</span>' +
-          '</div>' +
-        '</div>' +
-        '<div class="power-info">' +
-          '<div class="power-name">' + (p.label||('Circuit '+(i+1))) + '</div>' +
-          '<div class="power-subs">' + subs + '</div>' +
-        '</div>' +
+      const subs = [];
+      if (energy  !== null) subs.push('<span class="p-sub-val">' + energy  + ' kWh</span>');
+      if (current !== null) subs.push('<span class="p-sub-val">' + current + ' A</span>');
+      const subHTML = subs.length ? '<div class="spx-sub">' + subs.join(' · ') + '</div>' : '';
+      return '<div class="power-tile" style="--ac:' + accent + ';--tint:' + tint + '" data-action="more-info" data-entity="' + (p.entity||'') + '" data-idx="' + i + '">' +
+        '<div class="spx-tx"><div class="spx-name">' + (p.label||('Circuit '+(i+1))) + '</div>' + subHTML + '</div>' +
+        '<div class="spx-right"><span class="spx-big p-val">' + Math.round(watts) + '</span><span class="spx-unit">W</span></div>' +
         '</div>';
     }).join('');
 
@@ -1236,17 +1081,17 @@ class MultiPanelDashboardCard extends HTMLElement {
       '<div class="sec-col"><div class="sec"><span class="sec-dot" style="background:' + dotColor + ';box-shadow:0 0 5px ' + dotColor + '"></span>' + label + '</div>' + inner + '</div>';
 
     const swSec    = hasSw    ? mkSec('#4fa3e0', cfg.label_switches || 'Switches',
-                         '<div class="sw-grid" style="grid-template-columns:repeat(' + swCols + ',1fr)">' + swHTML + '</div>') : '';
+                         '<div class="sw-grid" style="--n:' + swCols + ';--min:150px">' + swHTML + '</div>') : '';
     const sensSec  = hasSens  ? mkSec('#ffaa6d', cfg.label_sensors  || 'Sensors',
-                         '<div class="sensor-grid scols-' + sCols + '" style="grid-template-columns:repeat(' + sCols + ',1fr)">' + sensHTML + '</div>') : '';
+                         '<div class="sensor-grid" style="--n:' + sCols + ';--min:150px">' + sensHTML + '</div>') : '';
     const climSec  = hasClim  ? mkSec('#6ddb99', cfg.label_climate  || 'Climate',
                          ((cfg.gauges||[]).length > 0
-                            ? '<div class="gauge-grid gcols-' + gCols + '" style="grid-template-columns:repeat(' + gCols + ',1fr)">' + gaugesHTML + '</div>'
+                            ? '<div class="gauge-grid" style="--n:' + gCols + ';--min:170px">' + gaugesHTML + '</div>'
                             : '') + saltHTML) : '';
     const devSec   = hasDev   ? mkSec('#22c55e', cfg.label_devices  || 'Devices',
                          '<div class="devices-wrap">' + this._mowerHTML() + '</div>') : '';
     const powerSec = hasPower ? mkSec('#e07c4f', cfg.label_power    || 'Power',
-                         '<div class="power-grid pcols-' + pCols + '" style="grid-template-columns:repeat(' + pCols + ',1fr)">' + powerHTML + '</div>') : '';
+                         '<div class="power-grid" style="--n:' + pCols + ';--min:170px">' + powerHTML + '</div>') : '';
 
     const hasCameras = (cfg.cameras || []).length > 0;
     const camsSection = hasCameras ? (
@@ -1258,10 +1103,7 @@ class MultiPanelDashboardCard extends HTMLElement {
     // ── Frosted glass class: only on default theme ───────────────────────────
     const isNeon    = (cfg.theme === 'neon');
     const isFrosted = (cfg.theme === 'default' || !cfg.theme) && !!cfg.frosted_glass;
-    const sizeMode  = cfg.text_size || 'compact';
-    const sizeCls   = sizeMode === 'large' ? ' mpd-size-large'
-                    : sizeMode === 'comfortable' ? ' mpd-size-comfortable' : '';
-    const cardCls   = 'mpd-card' + sizeCls + (isFrosted ? ' mpd-frosted' : '') + (cfg.jha ? ' mpd-jha' : '');
+    const cardCls   = 'mpd-card' + (isFrosted ? ' mpd-frosted' : '') + (cfg.jha ? ' mpd-jha' : '');
 
     const cardOpen  = isNeon
       ? '<div class="mpd-neon-ring"><div class="' + cardCls + '"><div class="mpd-inner">'
@@ -1320,9 +1162,12 @@ class MultiPanelDashboardCard extends HTMLElement {
     (cfg.switches || []).forEach(function(sw, i) {
       const tile = sr.querySelector('.sw-tile[data-idx="' + i + '"]'); if (!tile) return;
       const state = stateVal(hass, sw.entity), on = isOn(state), unavail = isUnavail(state), motion = sw.category === 'motion';
+      const active = on && !unavail;
+      const accent = unavail ? '#6b7686' : (motion && on) ? '#ff9a6d' : on ? '#4fa3e0' : '#6b7686';
       tile.className = 'sw-tile' + (unavail ? ' sw-unavail' : motion && on ? ' sw-motion' : on ? ' sw-on' : '');
-      const stEl = tile.querySelector('.sw-state'); if (!stEl) return;
-      stEl.className   = 'sw-state' + (motion && on ? ' s-motion' : on ? ' s-on' : '');
+      tile.style.setProperty('--ac', accent);
+      tile.style.setProperty('--tint', hexToRgba(accent, active ? 0.16 : 0.06));
+      const stEl = tile.querySelector('.spx-state'); if (!stEl) return;
       stEl.textContent = unavail ? 'N/A' : motion ? (on ? 'Detected' : 'Clear') : stateLabel(state);
     });
 
@@ -1333,6 +1178,8 @@ class MultiPanelDashboardCard extends HTMLElement {
       const dc    = stateAttr(hass, s.entity, 'device_class') || '';
       const motion = cat === 'motion' || isMotionSensor(s.entity, dc);
       const motionActive = motion && MOTION_ACTIVE.includes((state || '').toLowerCase());
+      const active = motion ? motionActive : on;
+      const accent = sensorAccent(cat, motion, motionActive, on, unavail);
       const disp = unavail ? '—'
                 : motion ? (motionActive ? 'Detected' : 'Clear')
                 : cat === 'door'  ? (on ? 'Open' : 'Closed')
@@ -1341,44 +1188,22 @@ class MultiPanelDashboardCard extends HTMLElement {
                 : stateLabel(state);
 
       tile.className = 'sensor-tile' + (motion && motionActive ? ' motion-active' : '');
-
-      if (motion) {
-        const wrap  = tile.querySelector('.sensor-icon-wrap');
-        const emoji = tile.querySelector('.motion-emoji');
-        if (wrap)  wrap.className  = 'sensor-icon-wrap ' + (motionActive ? 'motion-active' : 'motion-clear');
-        if (emoji) emoji.className = 'motion-emoji' + (motionActive ? '' : ' clear');
-      }
-
-      const valEl = tile.querySelector('.sensor-val'); if (!valEl) return;
-      valEl.className   = 'sensor-val' + (motion && motionActive ? ' sv-motion' : cat === 'door' && on ? ' sv-open' : on ? ' sv-on' : !unavail && !on ? ' sv-off' : '');
-      valEl.textContent = disp;
+      tile.style.setProperty('--ac', accent);
+      tile.style.setProperty('--tint', hexToRgba(accent, active ? 0.16 : 0.10));
+      const stEl = tile.querySelector('.spx-state'); if (stEl) stEl.textContent = disp;
     });
 
-    // Gauges
+    // Gauges (climate)
     (cfg.gauges || []).forEach(function(g, i) {
-      const card  = sr.querySelector('.gauge-tile[data-idx="' + i + '"]');
-      const tEl   = sr.getElementById('g-temp-' + i), hEl = sr.getElementById('g-hum-' + i);
+      const tile  = sr.querySelector('.gauge-tile[data-idx="' + i + '"]'); if (!tile) return;
       const tVal  = stateNum(hass, g.temp_entity), hVal = stateNum(hass, g.humidity_entity);
       const tTh   = parseTh(g.temp_thresholds, DEFAULT_THRESHOLDS.temperature);
-      const hTh   = parseTh(g.hum_thresholds,  DEFAULT_THRESHOLDS.humidity);
-      const tColor = colorFromThresholds(tVal, tTh), hColor = colorFromThresholds(hVal, hTh);
-      const tPct  = Math.min(1, Math.max(0, tVal / 50)), hPct = Math.min(1, Math.max(0, hVal / 100));
-      if (tEl) { tEl.textContent = g.temp_entity     ? tVal.toFixed(1) + '°C' : '—'; tEl.style.color = tColor; }
-      if (hEl) { hEl.textContent = g.humidity_entity ? hVal.toFixed(1) + '%'  : '—'; hEl.style.color = hColor; }
-      if (card) {
-        const size = parseInt(g.gauge_size) || 54;
-        const r1 = size * 0.41, r2 = size * 0.32;
-        const c1 = 2 * Math.PI * r1, c2 = 2 * Math.PI * r2;
-        const circles = card.querySelectorAll('circle');
-        if (circles.length >= 4) {
-          circles[1].setAttribute('stroke', tColor);
-          circles[1].setAttribute('stroke-dashoffset', (c1 * (1 - tPct)).toFixed(1));
-          circles[1].style.filter = 'drop-shadow(0 0 4px ' + tColor + ')';
-          circles[3].setAttribute('stroke', hColor);
-          circles[3].setAttribute('stroke-dashoffset', (c2 * (1 - hPct)).toFixed(1));
-          circles[3].style.filter = 'drop-shadow(0 0 3px ' + hColor + ')';
-        }
-      }
+      const tColor = colorFromThresholds(tVal, tTh);
+      const accent = (g.temp_entity && typeof tColor === 'string' && tColor[0] === '#') ? tColor : '#6ddb99';
+      tile.style.setProperty('--ac', accent);
+      tile.style.setProperty('--tint', hexToRgba(accent, 0.15));
+      const tEl = tile.querySelector('.g-temp'); if (tEl) tEl.textContent = g.temp_entity     ? tVal.toFixed(1) + '°C' : '—';
+      const hEl = tile.querySelector('.g-hum');  if (hEl) hEl.textContent = g.humidity_entity ? hVal.toFixed(1) + '%'  : '—';
     });
 
     // Salt
@@ -1389,21 +1214,17 @@ class MultiPanelDashboardCard extends HTMLElement {
         const saltPctDisp  = (saltPct * 100).toFixed(1);
         const saltTh       = parseTh(cfg.salt_thresholds, DEFAULT_THRESHOLDS.salt);
         const saltColor    = colorFromThresholds(parseFloat(saltPctDisp), saltTh);
-        const r = 60 * 0.42, c = 2 * Math.PI * r, off = c * (1 - saltPct);
+        const saltAccent   = (typeof saltColor === 'string' && saltColor[0] === '#') ? saltColor : '#e0b44f';
         const saltDistRaw  = cfg.salt_entity ? stateNum(hass, cfg.salt_entity) : null;
         const saltDistUnit = cfg.salt_entity ? (stateAttr(hass, cfg.salt_entity, 'unit_of_measurement') || '') : '';
         const saltDistDisp = saltDistRaw !== null ? saltDistRaw.toFixed(2) + saltDistUnit : '';
         const saltMetaDisp = saltPctDisp + '% full' + (saltDistDisp ? ' · ' + saltDistDisp : '');
+        saltCard.style.setProperty('--ac', saltAccent);
+        saltCard.style.setProperty('--tint', hexToRgba(saltAccent, 0.14));
         const sVal  = saltCard.querySelector('.s-val');
-        const sPct  = saltCard.querySelector('.s-pct');
         const sMeta = saltCard.querySelector('.salt-meta');
-        const sBar  = saltCard.querySelector('.salt-bar');
-        const sCir  = saltCard.querySelectorAll('circle')[1];
         if (sVal)  sVal.textContent  = saltPctDisp + '%';
-        if (sPct)  sPct.textContent  = saltDistDisp;
         if (sMeta) sMeta.textContent = saltMetaDisp;
-        if (sBar)  { sBar.style.width = saltPctDisp + '%'; sBar.style.background = saltColor; }
-        if (sCir)  { sCir.setAttribute('stroke', saltColor); sCir.setAttribute('stroke-dashoffset', off.toFixed(1)); }
       }
     }
 
@@ -1411,24 +1232,18 @@ class MultiPanelDashboardCard extends HTMLElement {
     (cfg.power_circuits || []).forEach(function(p, i) {
       const tile  = sr.querySelector('.power-tile[data-idx="' + i + '"]'); if (!tile) return;
       const watts = stateNum(hass, p.entity);
-      const maxW  = parseFloat(p.max_w) || 3000;
-      const pct   = Math.min(1, Math.max(0, watts / maxW));
       const pTh   = parseTh(p.power_thresholds, DEFAULT_THRESHOLDS.power);
       const pcolor = colorFromThresholds(watts, pTh);
-      const pSize  = parseInt(cfg.power_columns) >= 2 ? 52 : 60;
-      const r = pSize * 0.38, full = 2 * Math.PI * r, arc = full * 0.75, fill = Math.max(0, Math.min(arc, pct * arc));
-      const circles = tile.querySelectorAll('circle');
-      if (circles.length >= 2) {
-        circles[1].setAttribute('stroke', pcolor);
-        circles[1].setAttribute('stroke-dasharray', fill.toFixed(1) + ' ' + (full - fill).toFixed(1));
-        circles[1].style.filter = 'drop-shadow(0 0 4px ' + pcolor + ')';
-      }
+      const accent = (watts > 0 && typeof pcolor === 'string' && pcolor[0] === '#') ? pcolor : '#7a8aa0';
+      tile.style.setProperty('--ac', accent);
+      tile.style.setProperty('--tint', hexToRgba(accent, 0.14));
       const pVal = tile.querySelector('.p-val');
-      if (pVal) { pVal.textContent = Math.round(watts); pVal.style.color = pcolor; }
+      if (pVal) pVal.textContent = Math.round(watts);
       if (p.energy_entity || p.current_entity) {
         const subVals = tile.querySelectorAll('.p-sub-val');
-        if (p.energy_entity  && subVals[0]) subVals[0].textContent = stateNum(hass, p.energy_entity).toFixed(2)  + 'kWh';
-        if (p.current_entity && subVals[1]) subVals[1].textContent = stateNum(hass, p.current_entity).toFixed(2) + 'A';
+        let idx = 0;
+        if (p.energy_entity  && subVals[idx]) { subVals[idx].textContent = stateNum(hass, p.energy_entity).toFixed(2)  + ' kWh'; idx++; }
+        if (p.current_entity && subVals[idx]) { subVals[idx].textContent = stateNum(hass, p.current_entity).toFixed(2) + ' A'; }
       }
     });
 
@@ -1719,13 +1534,6 @@ class MultiPanelDashboardCardEditor extends LitElement {
     const cfg = this._config;
     const isDefault = (cfg.theme === 'default' || !cfg.theme);
     return html`
-      ${this._seg('Display Size', cfg.text_size || 'compact',
-        [{ val: 'compact', label: 'Compact' }, { val: 'comfortable', label: 'Comfortable' }, { val: 'large', label: 'Large' }],
-        (v) => this._set('text_size', v))}
-      <p class="hint">
-        Scales up fonts, icons and spacing for clearer reading on a wall display.
-        <strong>Compact</strong> is the original layout.
-      </p>
       ${isDefault ? html`
         ${this._toggle('✨ Just HA Design', cfg.jha, (v) => this._set('jha', v))}
         ${this._toggle('Frosted Glass Mode', cfg.frosted_glass, (v) => this._set('frosted_glass', v))}
