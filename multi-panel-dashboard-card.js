@@ -3,9 +3,16 @@
  * Unified single card: header + cameras + sections + devices (mower) + salt + power
  * Author: robman2026
  * GitHub: https://github.com/robman2026/multi-panel-dashboard-card
- * Version: 4.1.0
+ * Version: 4.2.1
  * License: MIT
  *
+ * ─────────────────────────────────────────────────────────────────────────
+ * v4.2.1
+ *  ~ "Last changed" now uses Home Assistant's native <ha-relative-time>
+ *    element, so it matches HA's own wording, locale and live auto-update.
+ * v4.2.0
+ *  + Switch & sensor tiles show a "last changed" relative time under the
+ *    state, like native HA entity cards.
  * ─────────────────────────────────────────────────────────────────────────
  * v4.1.0
  *  + Long-press (≈500 ms) on any tile opens the native more-info dialog,
@@ -39,7 +46,7 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-const CARD_VERSION = "4.1.0";
+const CARD_VERSION = "4.2.1";
 
 const LitElement = Object.getPrototypeOf(customElements.get("ha-panel-lovelace"));
 const html = LitElement.prototype.html;
@@ -492,6 +499,7 @@ const STYLES = [
   ".spx-name{font-size:14px;font-weight:600;color:var(--mpd-title-color,#fff);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
   ".spx-state{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:2px;color:var(--ac,rgba(255,255,255,.4));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
   ".spx-sub{font-size:11.5px;color:var(--mpd-text-dim,rgba(255,255,255,.55));margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+  ".spx-ago{display:block;font-size:10.5px;color:var(--mpd-text-muted,rgba(255,255,255,.38));font-family:'DM Mono',monospace;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
   ".spx-right{flex-shrink:0;text-align:right;align-self:center;}",
   ".spx-big{font-size:21px;font-weight:800;font-family:'DM Mono',monospace;color:var(--ac,#fff);line-height:1;white-space:nowrap;}",
   ".spx-unit{font-size:12px;font-weight:600;color:var(--mpd-text-dim,rgba(255,255,255,.5));margin-left:1px;}",
@@ -960,6 +968,7 @@ class MultiPanelDashboardCard extends HTMLElement {
     // Switches
     const swCols = parseInt(cfg.switches_columns) || 2;
     const swHTML = (cfg.switches || []).map(function(sw, i) {
+      const stateObj = hass && hass.states[sw.entity];
       const state    = stateVal(hass, sw.entity);
       const on       = isOn(state), unavail = isUnavail(state), motion = sw.category === 'motion';
       const active   = on && !unavail;
@@ -967,15 +976,18 @@ class MultiPanelDashboardCard extends HTMLElement {
       const tint     = hexToRgba(accent, active ? 0.16 : 0.06);
       const cls      = 'sw-tile' + (unavail ? ' sw-unavail' : motion && on ? ' sw-motion' : on ? ' sw-on' : '');
       const stxt     = unavail ? 'N/A' : motion ? (on ? 'Detected' : 'Clear') : stateLabel(state);
+      const agoHTML  = stateObj ? '<ha-relative-time class="spx-ago" data-entity="' + sw.entity + '"></ha-relative-time>' : '';
       return '<div class="' + cls + '" style="--ac:' + accent + ';--tint:' + tint + '" data-action="toggle" data-entity="' + (sw.entity||'') + '" data-idx="' + i + '">' +
         '<div class="spx-ic">' + renderIcon(sw.icon || 'switch_icon', 'currentColor', 21) + '</div>' +
-        '<div class="spx-tx"><div class="spx-name">' + (sw.label||'—') + '</div><div class="spx-state">' + stxt + '</div></div>' +
+        '<div class="spx-tx"><div class="spx-name">' + (sw.label||'—') + '</div><div class="spx-state">' + stxt + '</div>' +
+          agoHTML + '</div>' +
         '</div>';
     }).join('');
 
     // Sensors
     const sCols = parseInt(cfg.sensors_columns) || 2;
     const sensHTML = (cfg.sensors || []).map(function(s, i) {
+      const stateObj = hass && hass.states[s.entity];
       const state = stateVal(hass, s.entity), on = isOn(state), cat = s.category || 'sensor', unavail = isUnavail(state);
       const dc    = stateAttr(hass, s.entity, 'device_class') || '';
       const motion = cat === 'motion' || isMotionSensor(s.entity, dc);
@@ -995,10 +1007,12 @@ class MultiPanelDashboardCard extends HTMLElement {
         ? '<span class="motion-emoji">🚶</span>'
         : renderIcon(s.icon || CATEGORY_ICON[cat] || 'sensor', 'currentColor', 21);
 
+      const agoHTML = stateObj ? '<ha-relative-time class="spx-ago" data-entity="' + s.entity + '"></ha-relative-time>' : '';
       const tileCls = 'sensor-tile' + (motion && motionActive ? ' motion-active' : '');
       return '<div class="' + tileCls + '" style="--ac:' + accent + ';--tint:' + tint + '" data-action="more-info" data-entity="' + (s.entity||'') + '" data-idx="' + i + '">' +
         '<div class="spx-ic">' + iconInner + '</div>' +
-        '<div class="spx-tx"><div class="spx-name">' + (s.label||'—') + '</div><div class="spx-state">' + disp + '</div></div>' +
+        '<div class="spx-tx"><div class="spx-name">' + (s.label||'—') + '</div><div class="spx-state">' + disp + '</div>' +
+          agoHTML + '</div>' +
         '</div>';
     }).join('');
 
@@ -1133,9 +1147,31 @@ class MultiPanelDashboardCard extends HTMLElement {
     this.shadowRoot.innerHTML = this._buildHTML();
     this._attachListeners();
     this._initStreams();
+    this._initRelativeTimes();
     this._startResizeObserver();
     applyTheme(this, this._config.theme || 'default', this._config.neon_color || 'cyan', this._config);
     this._built = true;
+  }
+
+  // Feed hass + the entity's last_changed into the native <ha-relative-time>
+  // elements so they render (and auto-update) the same "x ago" text HA uses.
+  _initRelativeTimes() {
+    const hass = this._hass, sr = this.shadowRoot;
+    if (!hass || !sr) return;
+    sr.querySelectorAll('ha-relative-time.spx-ago').forEach(function(el) {
+      const id = el.dataset.entity;
+      const so = id ? hass.states[id] : null;
+      el.hass = hass;
+      el.datetime = so ? so.last_changed : undefined;
+    });
+    if (!customElements.get('ha-relative-time') && !this._rtPending) {
+      this._rtPending = true;
+      const self = this;
+      customElements.whenDefined('ha-relative-time').then(function() {
+        self._rtPending = false;
+        self._initRelativeTimes();
+      });
+    }
   }
 
   _startResizeObserver() {
@@ -1176,8 +1212,8 @@ class MultiPanelDashboardCard extends HTMLElement {
       tile.className = 'sw-tile' + (unavail ? ' sw-unavail' : motion && on ? ' sw-motion' : on ? ' sw-on' : '');
       tile.style.setProperty('--ac', accent);
       tile.style.setProperty('--tint', hexToRgba(accent, active ? 0.16 : 0.06));
-      const stEl = tile.querySelector('.spx-state'); if (!stEl) return;
-      stEl.textContent = unavail ? 'N/A' : motion ? (on ? 'Detected' : 'Clear') : stateLabel(state);
+      const stEl = tile.querySelector('.spx-state');
+      if (stEl) stEl.textContent = unavail ? 'N/A' : motion ? (on ? 'Detected' : 'Clear') : stateLabel(state);
     });
 
     // Sensors (including motion)
@@ -1272,6 +1308,9 @@ class MultiPanelDashboardCard extends HTMLElement {
         }
       }
     }
+
+    // Keep the native relative-time elements pointed at the latest hass/state
+    this._initRelativeTimes();
   }
 
   _initStreams() {
